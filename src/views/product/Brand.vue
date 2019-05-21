@@ -33,6 +33,8 @@
             </el-table-column>
             <el-table-column prop="productType.name" label="商品类型" sortable>
             </el-table-column>
+            <!--<el-table-column prop="productType.id" label="商品编号" v-if="hideRow" sortable >-->
+            <!--</el-table-column>-->
             <el-table-column prop="description" label="描述" sortable>
             </el-table-column>
             <el-table-column label="操作" width="150">
@@ -53,23 +55,44 @@
         <!--编辑界面-->
         <el-dialog title="编辑" :visible.sync="editFormVisible" :close-on-click-modal="false">
             <el-form :model="editForm" label-width="80px" :rules="editFormRules" ref="editForm">
-                <el-form-item label="姓名" prop="name">
+                <el-form-item label="编号" prop="id" hidden="true">
+                    <el-input input type="hidden" v-model="editForm.id" ></el-input>
+                </el-form-item>
+                <el-form-item label="品牌名" prop="name">
                     <el-input v-model="editForm.name" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item label="性别">
-                    <el-radio-group v-model="editForm.sex">
-                        <el-radio class="radio" :label="1">男</el-radio>
-                        <el-radio class="radio" :label="0">女</el-radio>
-                    </el-radio-group>
+                <el-form-item label="英文名">
+                    <el-input v-model="editForm.englishName" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item label="年龄">
-                    <el-input-number v-model="editForm.age" :min="0" :max="200"></el-input-number>
+                <el-form-item label="商品类型" prop="productTypeId">
+                    <el-cascader style="width:100%"
+                                 :options="productTypes"
+                                 v-model="editForm.productTypeId"
+                                 :props="productProps">
+                    </el-cascader>
                 </el-form-item>
-                <el-form-item label="生日">
-                    <el-date-picker type="date" placeholder="选择日期" v-model="editForm.birth"></el-date-picker>
+                <el-form-item label="logo">
+                    <el-upload
+                            class="upload-demo"
+                            action="http://localhost:9527/services/common/file/upload"
+                            :before-remove="handleLogoRemove"
+                            :file-list="logoList"
+                            list-type="picture"
+                            :limit="1"
+                            :on-success="handleUploadSeccess"
+                            :on-exceed="handleOutOfRange">
+                        <el-button size="small" type="primary">点击上传</el-button>
+                    </el-upload>
                 </el-form-item>
-                <el-form-item label="地址">
-                    <el-input type="textarea" v-model="editForm.addr"></el-input>
+                <el-form-item label="描述">
+                    <el-input type="textarea" v-model="editForm.description"></el-input>
+                </el-form-item>
+                <el-form-item label="更新时间">
+                    <el-date-picker
+                            v-model="editForm.updateTime"
+                            type="date"
+                            placeholder="选择日期">
+                    </el-date-picker>
                 </el-form-item>
             </el-form>
             <div slot="footer" class="dialog-footer">
@@ -81,23 +104,42 @@
         <!--新增界面-->
         <el-dialog title="新增" :visible.sync="addFormVisible" :close-on-click-modal="false">
             <el-form :model="addForm" label-width="80px" :rules="addFormRules" ref="addForm">
-                <el-form-item label="姓名" prop="name">
+                <el-form-item label="创建时间" prop="createTime">
+                    <el-date-picker
+                            v-model="addForm.createTime"
+                            type="date"
+                            placeholder="选择日期"
+                            readonly="true">
+                    </el-date-picker>
+                </el-form-item>
+                <el-form-item label="品牌名" prop="name">
                     <el-input v-model="addForm.name" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item label="性别">
-                    <el-radio-group v-model="addForm.sex">
-                        <el-radio class="radio" :label="1">男</el-radio>
-                        <el-radio class="radio" :label="0">女</el-radio>
-                    </el-radio-group>
+                <el-form-item label="英文名" prop="englishName">
+                    <el-input v-model="addForm.englishName" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item label="年龄">
-                    <el-input-number v-model="addForm.age" :min="0" :max="200"></el-input-number>
+                <el-form-item label="商品类型" prop="productTypeId">
+                    <el-cascader style="width:100%"
+                                 :options="productTypes"
+                                 v-model="addForm.productTypeId"
+                                 :props="productProps">
+                    </el-cascader>
                 </el-form-item>
-                <el-form-item label="生日">
-                    <el-date-picker type="date" placeholder="选择日期" v-model="addForm.birth"></el-date-picker>
+                <el-form-item label="logo" prop="logo">
+                    <el-upload
+                            class="upload-demo"
+                            action="http://localhost:9527/services/common/file/upload"
+                            :before-remove="handleLogoRemove"
+                            :file-list="logoList"
+                            list-type="picture"
+                            :limit="1"
+                            :on-success="handleUploadSeccess"
+                            :on-exceed="handleOutOfRange">
+                        <el-button size="small" type="primary">点击上传</el-button>
+                    </el-upload>
                 </el-form-item>
-                <el-form-item label="地址">
-                    <el-input type="textarea" v-model="addForm.addr"></el-input>
+                <el-form-item label="描述" prop="description">
+                    <el-input type="textarea" v-model="addForm.description"></el-input>
                 </el-form-item>
             </el-form>
             <div slot="footer" class="dialog-footer">
@@ -112,9 +154,13 @@
     export default {
         data() {
             return {
+                hideRow:"true",
+                productTypeId:"",
+                productTypes:[],
                 filters: {
                     keyword: ''
                 },
+                logoList: [],
                 brands: [],
                 total: 0,
                 page: 1,
@@ -126,38 +172,134 @@
                 editLoading: false,
                 editFormRules: {
                     name: [
-                        { required: true, message: '请输入姓名', trigger: 'blur' }
+                        {required: true, message: '请输入姓名', trigger: 'blur'}
+                    ],
+                    englishName: [
+                        {required: true, message: '请输入英文名', trigger: 'blur'}
+                    ],
+                    sortIndex: [
+                        {required: true, message: '请输入序号', trigger: 'blur'}
+                    ],
+                    productTypeId: [
+                        {required: true, message: '请选择商品类型', trigger: 'blur'}
                     ]
+                },
+                //级联选择器的属性配置
+                productProps:{
+                    label: "name",
+                    value: "id"
                 },
                 //编辑界面数据
                 editForm: {
                     id: 0,
                     name: '',
-                    sex: -1,
-                    age: 0,
-                    birth: '',
-                    addr: ''
+                    updateTime:Date.now(),//跟新时间
+                    englishName:"",//英文名
+                    firstLetter:"",//首字母
+                    description:"",//描述
+                    logo:"",
+                    productTypeId:[],
+                    productType:{//商品类型
+                        id:"",
+                        name:""
+                    }
                 },
 
                 addFormVisible: false,//新增界面是否显示
                 addLoading: false,
+
+                //新增表单验证
                 addFormRules: {
                     name: [
-                        { required: true, message: '请输入姓名', trigger: 'blur' }
+                        {required: true, message: '请输入姓名', trigger: 'blur'}
+                    ],
+                    englishName: [
+                        {required: true, message: '请输入英文名', trigger: 'blur'}
+                    ],
+                    sortIndex: [
+                        {required: true, message: '请输入序号', trigger: 'blur'}
+                    ],
+                    productTypeId: [
+                        {required: true, message: '请选择商品类型', trigger: 'blur'}
                     ]
+
                 },
                 //新增界面数据
                 addForm: {
+                    id: "",
+                    createTime:Date.now(),
                     name: '',
-                    sex: -1,
-                    age: 0,
-                    birth: '',
-                    addr: ''
+                    productTypeId:[],
+                    updateTime:"",//跟新时间
+                    englishName:"",//英文名
+                    firstLetter:"",//首字母
+                    description:"",//描述
+                    logo:"",
+                    productType:{//商品类型
+                        id:"",
+                        name:""
+                    }
                 }
 
             }
         },
         methods: {
+            //获取商品类型树，循环处理children为空的时候
+            getTreeData(data) {
+                // 循环遍历json数据
+                for (var i = 0; i < data.length; i++) {
+
+                    if (data[i].children.length < 1) {
+                        // children若为空数组，则将children设为undefined
+                        data[i].children = undefined;
+                    } else {
+                        // children若不为空数组，则继续 递归调用 本方法
+                        this.getTreeData(data[i].children);
+                    }
+                }
+                return data;
+            },
+            //加载商品类型
+            getProductTypes() {
+                this.$http.get("/product/productType/tree").then((res) => {
+                    this.productTypes = this.getTreeData(res.data);
+                })
+            },
+            //文件上传成功钩子函数
+            handleUploadSeccess(response){
+                console.log(response);
+                this.addForm.logo = response.data;
+            },
+            //文件超出个数
+            handleOutOfRange(){
+                this.$message({
+                    message: '只能上传一张图片',
+                    type: 'warning'
+                });
+            },
+            //删除文件
+            handleLogoRemove(file, fileList){
+                console.log("file",file);//删除的回掉
+                this.$http.get("/common/file/delete",{
+                    params:{
+                        fileId:file.response.data
+                    }
+                }).then(res=>{
+                    let data = res.data;
+                    if(data.success){
+                        this.$message({
+                            message: '删除成功',
+                            type: 'success'
+                        });
+                    }else{
+                        this.$message({
+                            message: '删除失败',
+                            type: 'error'
+                        });
+                        return false;//阻止删除
+                    }
+                })
+            },
             //性别显示转换
             formatSex: function (row, column) {
                 return row.sex == 1 ? '男' : row.sex == 0 ? '女' : '未知';
@@ -219,16 +361,56 @@
             handleEdit: function (index, row) {
                 this.editFormVisible = true;
                 this.editForm = Object.assign({}, row);
+                //跟新时间
+                this.editForm.updateTime=Date.now();
+                // http://172.20.10.12/group1/M00/00/01/rBQKDFzicwOAT2X8ABDFfNGid1M175_big.png
+                //当有logo的时候显示出来
+                if(this.editForm.logo){
+                    this.logoList = [{name: this.editForm.name,url:"http://172.20.10.12"+this.editForm.logo}];
+                }
+                this.productTypeId=this.changeDetSelect(this.editForm.productTypeId,this.productTypes) //数据双向绑定
+                this.editForm.productTypeId=this.productTypeId;
+            },
+
+            changeDetSelect(key,treeData){
+                let arr = []; // 在递归时操作的数组
+                let returnArr = []; // 存放结果的数组
+                let depth = 0; // 定义全局层级
+                // 定义递归函数
+                function childrenEach(childrenData, depthN) {
+                    for (var j = 0; j < childrenData.length; j++) {
+                        depth = depthN; // 将执行的层级赋值 到 全局层级
+                        arr[depthN] = (childrenData[j].id);
+                        if (childrenData[j].id == key) {
+                            returnArr = arr.slice(0, depthN+1); //将目前匹配的数组，截断并保存到结果数组，
+                            break
+                        } else {
+                            if (childrenData[j].children) {
+                                depth ++;
+                                childrenEach(childrenData[j].children, depth);
+                            }
+                        }
+                    }
+                    return returnArr;
+                }
+                return childrenEach(treeData, depth);
             },
             //显示新增界面
             handleAdd: function () {
                 this.addFormVisible = true;
+                this.logoList=[];
                 this.addForm = {
                     name: '',
-                    sex: -1,
-                    age: 0,
-                    birth: '',
-                    addr: ''
+                    createTime:Date.now(),
+                    updateTime:"",//跟新时间
+                    englishName:"",//英文名
+                    firstLetter:"",//首字母
+                    description:"",//描述
+                    logo:"",
+                    productType:{//商品类型
+                        id:"",
+                        name:""
+                    }
                 };
             },
             //编辑
@@ -238,43 +420,71 @@
                         this.$confirm('确认提交吗？', '提示', {}).then(() => {
                             this.editLoading = true;
                             //NProgress.start();
+                            //格式化部分参数  productTypeId=[1,2,3]  ===> productTypeId=1
                             let para = Object.assign({}, this.editForm);
-                            para.birth = (!para.birth || para.birth == '') ? '' : util.formatDate.format(new Date(para.birth), 'yyyy-MM-dd');
-                            editUser(para).then((res) => {
+                            //this.productTypePro=para.productType.id
+                            para.productTypeId = para.productTypeId[para.productTypeId.length - 1];
+                            //发送请求
+                            this.$http.post("/product/brand", para).then((res) => {
                                 this.editLoading = false;
                                 //NProgress.done();
-                                this.$message({
-                                    message: '提交成功',
-                                    type: 'success'
-                                });
-                                this.$refs['editForm'].resetFields();
-                                this.editFormVisible = false;
-                                this.getBrands();
-                            });
+                                let data = res.data;
+                                if (data.success) {
+                                    this.$message({
+                                        message: '提交成功',
+                                        type: 'success'
+                                    });
+                                    //重置表单
+                                    this.$refs['editForm'].resetFields();
+                                    //关闭模态框
+                                    this.editFormVisible = false;
+                                    //重新加载table
+                                    this.getBrands();
+                                } else {
+                                    this.$message({
+                                        message: data.message,
+                                        type: 'error'
+                                    });
+                                }
+                            })
                         });
                     }
                 });
             },
             //新增
             addSubmit: function () {
+                //this.$refs.addForm 获取到组件对象
                 this.$refs.addForm.validate((valid) => {
                     if (valid) {
                         this.$confirm('确认提交吗？', '提示', {}).then(() => {
                             this.addLoading = true;
                             //NProgress.start();
+                            //格式化部分参数  productTypeId=[1,2,3]  ===> productTypeId=1
                             let para = Object.assign({}, this.addForm);
-                            para.birth = (!para.birth || para.birth == '') ? '' : util.formatDate.format(new Date(para.birth), 'yyyy-MM-dd');
-                            addUser(para).then((res) => {
+                            para.productTypeId = para.productTypeId[para.productTypeId.length - 1];
+                            //发送请求
+                            this.$http.post("/product/brand", para).then((res) => {
                                 this.addLoading = false;
                                 //NProgress.done();
-                                this.$message({
-                                    message: '提交成功',
-                                    type: 'success'
-                                });
-                                this.$refs['addForm'].resetFields();
-                                this.addFormVisible = false;
-                                this.getBrands();
-                            });
+                                let data = res.data;
+                                if (data.success) {
+                                    this.$message({
+                                        message: '提交成功',
+                                        type: 'success'
+                                    });
+                                    //重置表单
+                                    this.$refs['addForm'].resetFields();
+                                    //关闭模态框
+                                    this.addFormVisible = false;
+                                    //重新加载table
+                                    this.getBrands();
+                                } else {
+                                    this.$message({
+                                        message: data.message,
+                                        type: 'error'
+                                    });
+                                }
+                            })
                         });
                     }
                 });
@@ -310,6 +520,7 @@
         //$(function(){})
         mounted() {
             this.getBrands();
+            this.getProductTypes();
         }
     }
 
