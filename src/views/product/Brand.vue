@@ -343,19 +343,17 @@
                     // let para = { ids: row.id }; 这里传参数只能直接写进去 不能再封装一次
                     //参数写{data: para} 传到前端是{"ids":"36"}
                     //向后台发送删除请求
-                    this.$http.delete("product/brand/",{data: row.id})
+                    this.$http.delete("/product/brand/",{data: row.id})
                         .then((res) => {
                         this.listLoading = false;
                         //NProgress.done();
-                        this.$message({ //todo
+                        this.$message({
                             message: '删除成功',
                             type: 'success'
                         });
                         this.getBrands();
                     });
-                }).catch(() => {
-
-                });
+                })
             },
             //显示编辑界面
             handleEdit: function (index, row) {

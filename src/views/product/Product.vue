@@ -13,10 +13,10 @@
                     <el-button type="primary" @click="handleAdd">新增</el-button>
                 </el-form-item>
                 <el-form-item>
-                    <el-button type="primary" @click="handleAdd">显示属性</el-button>
+                    <el-button type="primary" @click="handleViewProperties">显示属性</el-button>
                 </el-form-item>
                 <el-form-item>
-                    <el-button type="primary" @click="handleAdd">SKU属性</el-button>
+                    <el-button type="primary" @click="handleSkuProperties">SKU属性</el-button>
                 </el-form-item>
                 <el-form-item>
                     <el-button type="primary" @click="handleAdd">上架</el-button>
@@ -37,8 +37,15 @@
             </el-table-column>
             <el-table-column prop="subName" label="副标题" width="150" sortable>
             </el-table-column>
+            <!--隐藏的属性-->
             <el-table-column v-if="false" prop="medias" label="媒体资源"  sortable>
             </el-table-column>
+            <el-table-column v-if="false" prop="content" label="媒体资源"  sortable>
+            </el-table-column>
+            <el-table-column v-if="false" prop="description" label="媒体资源"  sortable>
+            </el-table-column>
+            <!--隐藏-->
+
             <el-table-column prop="pt.name" label="商品类型" width="100" sortable>
             </el-table-column>
             <el-table-column prop="brand.name" label="商品品牌" width="100" sortable>
@@ -125,14 +132,14 @@
                 <el-form-item label="副标题" prop="subName">
                     <el-input v-model="addForm.subName" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item label="类型">
+                <el-form-item label="类型" prop="productType">
                     <el-cascader style="width:100%"
                                  :options="productTypes"
                                  v-model="addForm.productType"
                                  :props="productProps">
                     </el-cascader>
                 </el-form-item>
-                <el-form-item label="品牌">
+                <el-form-item label="品牌"prop="brandId">
                     <el-input v-model="addForm.brandId"></el-input>
                 </el-form-item>
                 <el-form-item label="媒体属性">
@@ -163,8 +170,75 @@
                 <el-button type="primary" @click.native="addSubmit" :loading="addLoading">提交</el-button>
             </div>
         </el-dialog>
+        <!-------------------------------------------显示属性维护的模态框-------------------------------------->
+        <el-dialog
+                title="显示属性管理"
+                :visible.sync="viewDialogVisible"
+                width="40%">
+
+            <!--卡片-->
+            <el-card class="box-card">
+                <div v-for="index in viewProperties.length" :key="index" class="text item" style="margin-bottom: 5px">
+                    <el-row>
+                        <el-col :span="3">{{viewProperties[index-1].specName}}:</el-col>
+                        <el-col :span="21">
+                            <el-input v-model="viewProperties[index-1].value"></el-input>
+                        </el-col>
+                    </el-row>
+                </div>
+            </el-card>
+
+
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="viewDialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="subViewProperties">确 定</el-button>
+          </span>
+        </el-dialog>
+        <!-------------------------------------------sku属性维护的模态框-------------------------------------->
+
+        <el-dialog title="SKU属性管理" :visible.sync="skuDialogVisible" width="60%">
+            <!--卡片     外层的卡片代表者一个sku属性-->
+            <el-card class="box-card" v-for="skuProperty in skuProperties" style="margin-bottom: 5px">
+                <!--内层的div代表sku属性的选项-->
+                <div slot="header" class="clearfix">
+                    <span>{{skuProperty.specName}}</span>
+                </div>
+                <!--length+1是为了每次写最后一个输入框的时候就增加一层-->
+                <div v-for="index in skuProperty.options.length+1" :key="index" class="text item">
+                    <el-input v-model="skuProperty.options[index-1]" style="width:80%"></el-input>
+                    <!--删除一条-->
+                    <el-button icon="el-icon-delete" @click="skuProperty.options.splice(index-1,1)" style="width:10%"></el-button>
+                </div>
+            </el-card>
+            <el-table :data="skus" border style="width: 100%">
+                <el-table-column type="index" width="50"></el-table-column>
+                <!--确定列名称-->
+                <template v-for="(value,key) in skus[0]">
+                    <!--更改价格和库存单元格和标题-->
+                    <el-table-column v-if="key=='price'" :prop="key" label="价格">
+                        <template scope="scope">
+                            <el-input v-model="scope.row.price"></el-input>
+                        </template>
+                    </el-table-column>
+                    <el-table-column v-else-if="key=='availableStock'" :prop="key" label="库存">
+                        <template scope="scope">
+                            <el-input v-model="scope.row.availableStock"></el-input>
+                        </template>
+                    </el-table-column>
+                    <!--隐藏sku_index属性-->
+                    <el-table-column v-else-if="key!='sku_index'" :prop="key" :label="key">
+                    </el-table-column>
+                </template>
+            </el-table>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="skuDialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="subSkuProperties">确 定</el-button>
+          </span>
+        </el-dialog>
+
     </section>
 </template>
+
 
 <script>
     import SquillEditorFastdfs from '@/components/SquillEditorFastdfs.vue';
@@ -174,6 +248,13 @@
         },
         data() {
             return {
+                //sku模态框
+                skuDialogVisible:false,
+                skuProperties:[],
+                skus:[],//sku所有组合
+                //显示属性模态框
+                viewDialogVisible:false,
+                viewProperties:[],//显示属性 通过选中的行的 productId查出来
                 editorOption:{},
                 //商品类型
                 productTypes: [],
@@ -238,6 +319,119 @@
             }
         },
         methods: {
+
+            //显示sku属性框
+            handleSkuProperties(){
+                //判断是否选中一行
+                if(this.sels.length!=1) {
+                    this.$message({
+                        message: '只能选中一行',
+                        type: 'warning'
+                    });
+                    return;
+                }
+                    //发送请求查询sku属性
+                    let productId = this.sels[0].id;
+                    this.$http.get("/product/product/skuProperties?productId="+productId)
+                        .then((res)=>{
+                            this.skuProperties=res.data;//返回的是数组（value，key），循环取value
+                        });
+                    //对sku的价格和库存进行回填
+                    this.$http.get("/product/product/skus?productId="+productId)
+                        .then(res=>{
+                           let data =res.data;
+                           this.skus.forEach(e1=>{
+                               data.forEach(e2=>{
+                                   if(e1.sku_index==e2.skuIndex){
+                                       e1.price=e2.price;
+                                       e1.availableStock=e2.availableStock;
+                                   }
+                               })
+                           })
+                        });
+                //只选中一行的情况才会执行以下代码
+                this.skuDialogVisible = true;
+            },
+            //确定提交sku
+            subSkuProperties(){
+                //准备请求参数
+                let para = {}
+                para.skuProperties = this.skuProperties;//保存到商品表
+                para.productId = this.sels[0].id;
+                para.skus = this.skus;//添加到sku表中
+                //发送请求
+                this.$confirm('确认提交吗？', '提示', {}).then(() => {
+                    this.$http.post("/product/product/skuProperties",para).then(res=>{
+                        let data = res.data;
+                        if(data.success){
+                            this.$message({
+                                message: '保存成功!',
+                                type: 'success'
+                            });
+                            //关闭模态框
+                            this.skuDialogVisible = false;
+                        }else{
+                            this.$message({
+                                message: data.message,
+                                type: 'error'
+                            });
+                        }
+                    })
+                })
+            },
+            //显示 显示属性模态框 handleViewProperties
+            handleViewProperties(){
+              //判断是否选中一行
+              if(this.sels.length!=1){
+                  this.$message({
+                      message: '只能选中一行',
+                      type: 'warning'
+                  });
+                  return;
+              }//只选中一行的情况才会执行以下代码
+              //发送请求查询ViewProperties 根据productId 查询从选中行中可以找到id
+                let productId = this.sels[0].id;
+                this.$http.get("/product/product/viewProperties?productId="+productId)
+                    .then((res)=>{
+                        this.viewProperties=res.data;//返回的是数组（value，key），循环取value
+                    });
+                //打开模态框
+                this.viewDialogVisible = true;
+            },//---------------------------------------------------------------------------
+
+            //点击提交显示属性按钮
+            subViewProperties(){
+              //准备请求参数
+                let para={};
+                //存入t_product表中，要查product 需要productId，然后存入viewProperties
+                para.productId=this.sels[0].id;
+                para.viewProperties=this.viewProperties;
+                //发送post请求
+                this.$confirm('确认提交吗？', '提示', {}).then(() => {
+                    this.$http.post("/product/product/viewProperties",para)
+                        .then(res=>{
+                            let data=res.data;
+                            if(data.success){
+                                this.$message({
+                                    message: '保存成功!',
+                                    type: 'success'
+                                });
+                                //关闭模态框
+                                this.viewDialogVisible = false;
+                            } else {
+                                this.$message({
+                                    message: '保存失败!'+data.message,
+                                    type: 'error'
+                                });
+                            }
+                        });
+                })
+
+            },
+
+            //-------------------------------------------------------------------------------
+
+
             //文件上传成功钩子函数
             handleUploadSeccess(response){
                 this.addForm.mediasArr.push(response.data)
@@ -318,23 +512,43 @@
                 }).then(() => {
                     this.listLoading = true;
                     //NProgress.start();
-                    let para = { id: row.id };
-                    removeUser(para).then((res) => {
+                    //let para = { id: row.id };
+                    this.$http.delete("/product/product/",{data: row.id})
+                        .then((res) => {
                         this.listLoading = false;
                         //NProgress.done();
-                        this.$message({
-                            message: '删除成功',
-                            type: 'success'
-                        });
-                        this.getProducts();
+                            if(data.success){
+                                this.$message({
+                                    message: '删除成功!',
+                                    type: 'success'
+                                });
+                                //关闭模态框
+                                this.viewDialogVisible = false;
+                            } else {
+                                this.$message({
+                                    message: '删除失败!'+data.message,
+                                    type: 'error'
+                                });
+                            }
                     });
-                }).catch(() => {
-
-                });
+                    this.getProducts();
+                })
             },
             //显示编辑界面
             handleEdit: function (index, row) {
                 this.editFormVisible = true;
+                this.mediaList=[];
+                this.editForm= {
+                    name:'',
+                    subName:'',
+                    productType:null,
+                    brandId:null,
+                    maxPrice:null,
+                    minPrice:null,
+                    description:'',
+                    content:'',
+                    mediasArr:[]
+                };
                 this.editForm = Object.assign({}, row);
                 //跟新时间
                 //this.editForm.updateTime=Date.now();
@@ -342,13 +556,18 @@
                 //当有logo的时候显示出来
                 if(this.editForm.medias){
                         //todo 回填数据图片
-                        this.mediaList.push({name: this.editForm.name,url:"http://172.20.10.12"+this.editForm.mediasArr[i]})
-                    console.log(this.mediaList)
+                        let mediasArr =this.editForm.medias.split(',');
+                        for(let i=0;i<mediasArr.length;i++){
+                            this.mediaList.push({name: this.editForm.name,url:"http://172.20.10.12"+mediasArr[i]})
+                            // console.log("mediasArr[i]============"+"http://172.20.10.12"+mediasArr[i])
+                        }
+                    console.log("this.mediaList============"+this.mediaList)
                     // this.mediaList = [{name: this.editForm.name,url:"http://172.20.10.12"+this.editForm.logo}];
                 }
-
+                //回填商品类型
                 this.editForm.productType=this.changeDetSelect(this.editForm.productType,this.productTypes) //数据双向绑定
-                // this.editForm.productTypeId=this.productTypeId;
+                //todo 回填商品描述和商品详情，这2条信息在t_product_ext中
+                console.log("editForm.content====="+this.editForm.content);
             },
             changeDetSelect(key,treeData){
                 let arr = []; // 在递归时操作的数组
@@ -376,6 +595,18 @@
             //显示新增界面
             handleAdd: function () {
                 this.addFormVisible = true;
+                this.mediaList=[];
+                this.addForm= {
+                    name:'',
+                        subName:'',
+                        productType:null,
+                        brandId:null,
+                        maxPrice:null,
+                        minPrice:null,
+                        description:'',
+                        content:'',
+                        mediasArr:[]
+                }
             },
             //编辑
             editSubmit: function () {
@@ -385,18 +616,31 @@
                             this.editLoading = true;
                             //NProgress.start();
                             let para = Object.assign({}, this.editForm);
-                            para.birth = (!para.birth || para.birth == '') ? '' : util.formatDate.format(new Date(para.birth), 'yyyy-MM-dd');
-                            editUser(para).then((res) => {
+                            //medias
+                            para.medias = this.arrToString(this.editForm.mediasArr);
+
+                            para.productType = this.editForm.productType[this.editForm.productType.length-1];
+                            //发送请求
+                            this.$http.post("/product/product",para).then(res=>{
                                 this.editLoading = false;
-                                //NProgress.done();
-                                this.$message({
-                                    message: '提交成功',
-                                    type: 'success'
-                                });
-                                this.$refs['editForm'].resetFields();
-                                this.editFormVisible = false;
-                                this.getProducts();
-                            });
+                                let data  = res.data;
+                                if(data.success){
+                                    this.$message({
+                                        message: '保存成功',
+                                        type: 'success'
+                                    });
+                                    this.$refs['editForm'].resetFields();
+                                    this.editFormVisible = false;
+                                    this.getProducts();
+                                }else{
+                                    this.$message({
+                                        message: '保存失败',
+                                        type: 'error'
+                                    });
+                                }
+
+                            })
+
                         });
                     }
                 });
@@ -410,7 +654,9 @@
                             //NProgress.start();
                             let para = Object.assign({}, this.addForm);
                             //medias
-                            para.medias = this.arrToString(this.addForm.mediasArr);
+                            //para.medias = this.arrToString(this.addForm.mediasArr);
+                            para.medias=this.addForm.mediasArr.join(',');
+                            console.log("para.medias==="+para.medias)
                             para.productType = this.addForm.productType[this.addForm.productType.length-1];
                             //发送请求
                             this.$http.post("/product/product",para).then(res=>{
@@ -460,7 +706,8 @@
                     this.listLoading = true;
                     //NProgress.start();
                     let para = { ids: ids };
-                    batchRemoveUser(para).then((res) => {
+                    this.$http.delete("product/product",{data: ids})
+                        .then((res) => {
                         this.listLoading = false;
                         //NProgress.done();
                         this.$message({
@@ -477,6 +724,42 @@
         mounted() {
             this.getProducts();
             this.getProductTypes();
+        },
+        watch:{
+            //监听属性的变化
+            skuProperties:{
+                handler(val, oldVal){
+                    //动态生成skus值
+                    let res = this.skuProperties.reduce((pre,cur)=>{
+                        //准备一个数据来接收
+                        let result=[];
+                        //2层循环拼接
+                        pre.forEach(e1=>{
+                            //sku_index拼接 外层循环决定sku_index的个数，内层决定值
+                            e1.sku_index = (e1.sku_index||'')+"_";
+                            for(let i=0;i<cur.options.length;i++){
+                                //当前的options
+                                let e2 =cur.options[i];
+                                //准备一个临时数组 接收上一次的结果
+                                let temp={}
+                                Object.assign(temp,e1);
+                                temp[cur.specName]=e2;
+                                temp.sku_index +=i;
+                                result.push(temp);
+                            }
+                        })
+                        return result;
+                    },[{}]);
+                    //添加价格
+                    res.forEach(e1=>{
+                        e1.price = 0;
+                        e1.availableStock = 0;
+                        e1.sku_index = e1.sku_index.substring(1);
+                    })
+                    this.skus = res;
+                },
+                deep:true
+            }
         }
     }
 
